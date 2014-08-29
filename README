@@ -1,0 +1,59 @@
+  # About
+
+This is Linux module/driver for USB-to-Serial converter built using 
+Renesas μPD78F0730 microcontroller.
+
+This converter can be found on YRPBRL78G14 board and other development boards
+produced by NEC Electronics and Renesas Electronics. Using this driver you can
+program the board mentioned above with rl78flash, or communicate with main MCU
+through serial port with any terminal program you like.
+
+  # Build
+
+make
+
+  # Clean
+
+make clean
+
+  # Install
+
+sudo make install
+
+You can verify that driver is registed by examining modules.alias file
+cat /lib/modules/$(uname -r)/modules.alias | grep upd78f0730
+
+  # YRPBRL78G14 notes
+
+Board can be used in 2 modes (selectable by jumpers CN6, CN7, CN8 and CN11):
+* OCD/programming (converter is connected to pin TOOL0 through one wire in
+  half duplex mode, RTS is connected to RESET)
+* Virtual UART (converter is connected to UART0 in full duplex mode,
+  RESET is not connected)
+
+Example: get information about target microcontroller (in OCD mode)
+rl78flash -im3 /dev/ttyUSB0
+
+  # Copying/License
+
+Renesas uPD78F0730 USB-to-serial converter driver
+
+Copyright (C) 2014 Maksim Salau <maksim.salau@gmail.com>
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation.
+
+For details see LICENSE file.
+
+  # Links
+
+* UPD78F0730 microcontroller
+  http://am.renesas.com/products/mpumcu/78k/78f07xx/78f073x/index.jsp
+* Application Note μPD78F0730 USB-to-Serial Conversion Software 
+  http://documentation.renesas.com/doc/DocumentServer/U19660EJ1V0AN00.pdf
+* YRPBRL78G14 board
+  http://am.renesas.com/products/tools/introductory_evaluation_tools/renesas_promo_board/yrpbrl78g14/index.jsp
+* rl78flash
+  https://github.com/msalau/rl78flash
+
