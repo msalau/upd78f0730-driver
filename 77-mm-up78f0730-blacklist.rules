@@ -1,0 +1,9 @@
+ACTION!="add|change", GOTO="mm_usb_device_blacklist_end"
+SUBSYSTEM!="usb", GOTO="mm_usb_device_blacklist_end"
+ENV{DEVTYPE}!="usb_device",  GOTO="mm_usb_device_blacklist_end"
+
+# Renesas uPD78F0730 USB-to-Serial converter
+ATTRS{idVendor}=="045b", ATTRS{idProduct}=="0212", ENV{ID_MM_DEVICE_IGNORE}="1"
+ATTRS{idVendor}=="0409", ATTRS{idProduct}=="0063", ENV{ID_MM_DEVICE_IGNORE}="1"
+
+LABEL="mm_usb_device_blacklist_end"
