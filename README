@@ -12,10 +12,6 @@ through serial port with any terminal program you like.
 
 make
 
-  # Clean
-
-make clean
-
   # Install
 
 sudo make install
