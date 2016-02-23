@@ -279,7 +279,7 @@ static void upd78f0730_set_termios(struct tty_struct *tty,
 		break;
 	default:
 		request.params |= DATA_SIZE_8_BITS;
-		dev_dbg(dev, "%s - data size is not supported, falling back to 8 bits\n",
+		dev_err(dev, "%s - data size is not supported, falling back to 8 bits\n",
 			__func__);
 		break;
 	}
@@ -302,13 +302,13 @@ static void upd78f0730_set_termios(struct tty_struct *tty,
 		request.params |= STOP_BIT_1_BIT;
 		dev_dbg(dev, "%s - 1 stop bit\n", __func__);
 	}
-	if (I_IXOFF(tty) || I_IXON(tty)) {
-		dev_dbg(dev, "%s - software flow control is not supported\n",
+	if (cflag & CRTSCTS) {
+		dev_err(dev, "%s - hardware flow control is not supported\n",
 			__func__);
 	}
-	if (cflag & CRTSCTS) {
-		request.params |= FLOW_CONTROL_HW;
-		dev_dbg(dev, "%s - hardware flow control\n", __func__);
+	if (I_IXOFF(tty) || I_IXON(tty)) {
+		request.params |= FLOW_CONTROL_SW;
+		dev_dbg(dev, "%s - software flow control\n", __func__);
 	} else {
 		request.params |= FLOW_CONTROL_NONE;
 		dev_dbg(dev, "%s - no flow control\n", __func__);
