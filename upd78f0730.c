@@ -1,11 +1,26 @@
 /*
- * Renesas uPD78F0730 USB-to-serial converter driver
+ * Renesas Electronics uPD78F0730 USB to serial converter driver
  *
- * Copyright (C) 2014 Maksim Salau <maksim.salau@gmail.com>
+ * Copyright (C) 2014,2016 Maksim Salau <maksim.salau@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation.
+ *
+ * Protocol of the adaptor is described in the application note U19660EJ1V0AN00
+ * μPD78F0730 8-bit Single-Chip Microcontroller
+ * USB-to-Serial Conversion Software
+ * <http://documentation.renesas.com/doc/DocumentServer/U19660EJ1V0AN00.pdf>
+ *
+ * The adaptor functionality is limited to the following:
+ * - data bits: 7 or 8
+ * - stop bits: 1 or 2
+ * - parity: even, odd or none
+ * - flow control: XON/XOFF or none
+ * - baudrates: 2400, 4800, 9600, 19200, 38400, 57600, 115200
+ * - signals: DTS, RTS and BREAK
+ * - there is an option to enable parity error character substitution,
+ *   but it is not supported by this driver
  */
 
 #include <linux/kernel.h>
@@ -17,7 +32,7 @@
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 
-#define DRIVER_DESC "Renesas uPD78F0730 USB-to-serial converter driver"
+#define DRIVER_DESC "Renesas uPD78F0730 USB to serial converter driver"
 
 #define DRIVER_AUTHOR "Maksim Salau <maksim.salau@gmail.com>"
 
@@ -29,11 +44,17 @@ static const struct usb_device_id id_table[] = {
 
 MODULE_DEVICE_TABLE(usb, id_table);
 
+/*
+ * Private data structure type declaration.
+ * Each adaptor is associated with a private structure, that holds the current
+ * state of control signals (DTR, RTS and BREAK).
+ */
 struct upd78f0730_serial_private {
 	spinlock_t	lock;
 	__u8		line_signals;
 };
 
+/* Function prototypes */
 static int upd78f0730_send_ctl(struct usb_serial_port *port,
 			void *data, int size);
 static int upd78f0730_attach(struct usb_serial *serial);
@@ -75,68 +96,92 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	NULL
 };
 
+/* Opcodes of control commands */
 #define LINE_CONTROL		0x00
 #define SET_DTR_RTS		0x01
 #define SET_XON_XOFF_CHR	0x02
 #define OPEN_CLOSE		0x03
 #define SET_ERR_CHR		0x04
 
+/* Data sizes in LINE_CONTROL command */
 #define DATA_SIZE_7_BITS	0x00
 #define DATA_SIZE_8_BITS	0x01
 #define DATA_SIZE_MASK		0x01
 
+/* Stop-bit modes in LINE_CONTROL command */
 #define STOP_BIT_1_BIT	0x00
 #define STOP_BIT_2_BIT	0x02
 #define STOP_BIT_MASK	0x02
 
+/* Parity modes in LINE_CONTROL command */
 #define PARITY_NONE	0x00
 #define PARITY_EVEN	0x04
 #define PARITY_ODD	0x08
 #define PARITY_MASK	0x0C
 
+/* Flow control modes in LINE_CONTROL command */
 #define FLOW_CONTROL_NONE	0x00
 #define FLOW_CONTROL_HW		0x10
 #define FLOW_CONTROL_SW		0x20
 #define FLOW_CONTROL_MASK	0x30
 
+/* Control signal bits in SET_DTR_RTS command */
 #define RESET_RTS	0x01
 #define RESET_DTR	0x02
 #define SET_BREAK	0x04
 
+/* Port modes in OPEN_CLOSE command */
 #define PORT_CLOSE	0x00
 #define PORT_OPEN	0x01
 
+/* Error character substitution modes in SET_ERR_CHR command */
 #define ERR_CHR_DISABLED	0x00
 #define ERR_CHR_ENABLED		0x01
 
+/*
+ * Declaration of command structures
+ */
+
+/* LINE_CONTROL command */
 struct line_control {
 	__u8	opcode;
 	__le32	baud_rate;
 	__u8	params;
 } __packed;
 
+/* SET_DTR_RTS command */
 struct set_dtr_rts {
 	__u8 opcode;
 	__u8 params;
 };
 
+/* SET_XON_OFF_CHR command */
 struct set_xon_xoff_chr {
 	__u8 opcode;
 	__u8 xon;
 	__u8 xoff;
 };
 
+/* OPEN_CLOSE command */
 struct open_close {
 	__u8 opcode;
 	__u8 state;
 };
 
+/* SET_ERR_CHR command */
 struct set_err_chr {
 	__u8 opcode;
 	__u8 state;
 	__u8 err_char;
 };
 
+/*
+ * upd78f0730_send_ctl
+ * Send a control command to the adaptor.
+ * The data argument points to a command structure in memory,
+ * which is 'size' bytes long.
+ * On success 0 is returned, or negative value otherwise.
+ */
 static int upd78f0730_send_ctl(struct usb_serial_port *port,
 			void *data, int size)
 {
@@ -162,6 +207,11 @@ static int upd78f0730_send_ctl(struct usb_serial_port *port,
 	return 0;
 }
 
+/*
+ * upd78f0730_attach
+ * The function is called when a new adaptor is connected to the host.
+ * The function allocates the private structure for the adaptor.
+ */
 static int upd78f0730_attach(struct usb_serial *serial)
 {
 	struct upd78f0730_serial_private *private;
@@ -180,6 +230,12 @@ static int upd78f0730_attach(struct usb_serial *serial)
 	return 0;
 }
 
+/*
+ * upd78f0730_release
+ * The function is called when the adaptor is detached from the host.
+ * The function de-allocates memory occupied by the private structure
+ * associated with the adaptor.
+ */
 static void upd78f0730_release(struct usb_serial *serial)
 {
 	struct upd78f0730_serial_private *private;
@@ -189,6 +245,16 @@ static void upd78f0730_release(struct usb_serial *serial)
 	kfree(private);
 }
 
+/*
+ * upd78f0730_open
+ * The function is called when software opens the port
+ * that is associated with the adaptor.
+ * The function performs basic initialization of the adaptor:
+ *  1. opens port;
+ *  2. sets initial state for DTR and RTS;
+ *  3. disables error character substitution.
+ * The driver can control the state of the adaptor only if the port is opened.
+ */
 static int upd78f0730_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	int res;
@@ -237,6 +303,14 @@ static int upd78f0730_open(struct tty_struct *tty, struct usb_serial_port *port)
 	return usb_serial_generic_open(tty, port);
 }
 
+/*
+ * upd78f0730_close
+ * The function is called when the port associated with the adaptor is closed
+ * by the host software.
+ * The function sends close command to the adaptor. From that moment,
+ * driver can't control state of the adaptor
+ * (e.g. state of the control signals).
+ */
 static void upd78f0730_close(struct usb_serial_port *port)
 {
 	struct open_close request_close = {
@@ -249,6 +323,14 @@ static void upd78f0730_close(struct usb_serial_port *port)
 	upd78f0730_send_ctl(port, &request_close, sizeof(request_close));
 }
 
+/*
+ * upd78f0730_set_termios
+ * Configure the adaptor according to software needs.
+ * The driver is not aware of the current configuration of the adaptor,
+ * and performs full reconfiguration every time.
+ * Note: Original devices support baudrates from 2400 up to 115200,
+ * but the driver doesn't limit the user in his desires.
+ */
 static void upd78f0730_set_termios(struct tty_struct *tty,
 				struct usb_serial_port *port,
 				struct ktermios *old_termios)
@@ -318,6 +400,12 @@ static void upd78f0730_set_termios(struct tty_struct *tty,
 	upd78f0730_send_ctl(port, &request_xchr, sizeof(request_xchr));
 }
 
+/*
+ * upd78f0730_tiocmget
+ * Read current state of DTR and RTS.
+ * Other signals are not present and the values associated with them
+ * shall be ignored.
+ */
 static int upd78f0730_tiocmget(struct tty_struct *tty)
 {
 	int res = 0;
@@ -341,6 +429,11 @@ static int upd78f0730_tiocmget(struct tty_struct *tty)
 	return res;
 }
 
+/*
+ * upd78f0730_tiocmset
+ * Set state of DTR and RTS.
+ * Requests for other signals are ignored without reporting a failure.
+ */
 static int upd78f0730_tiocmset(struct tty_struct *tty,
 			unsigned int set, unsigned int clear)
 {
@@ -379,6 +472,10 @@ static int upd78f0730_tiocmset(struct tty_struct *tty,
 	return res;
 }
 
+/*
+ * upd78f0730_dtr_rts
+ * Initialize both DTR and RTS to a value passed as argument.
+ */
 static void upd78f0730_dtr_rts(struct usb_serial_port *port, int on)
 {
 	unsigned long flags;
@@ -402,6 +499,13 @@ static void upd78f0730_dtr_rts(struct usb_serial_port *port, int on)
 	upd78f0730_send_ctl(port, &request, sizeof(request));
 }
 
+/*
+ * upd78f0730_break_ctl
+ * Control BREAK signal.
+ * The BREAK signal is not covered in the specification of the adaptor.
+ * It's behavior was sniffed from the original driver for Windows.
+ * BREAK is controlled by a bit in the 'params' field of SET_DTR_RTS command.
+ */
 static void upd78f0730_break_ctl(struct tty_struct *tty, int break_state)
 {
 	unsigned long flags;

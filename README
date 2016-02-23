@@ -1,6 +1,6 @@
   # About
 
-This is Linux module/driver for USB-to-Serial converter built using 
+This is a Linux module/driver for USB to Serial converter built using
 Renesas μPD78F0730 microcontroller.
 
 This converter can be found on YRPBRL78G14 board and other development boards
@@ -32,9 +32,9 @@ rl78flash -im3 /dev/ttyUSB0
 
   # Copying/License
 
-Renesas uPD78F0730 USB-to-serial converter driver
+Renesas Electronics uPD78F0730 USB to serial converter driver
 
-Copyright (C) 2014 Maksim Salau <maksim.salau@gmail.com>
+Copyright (C) 2014,2016 Maksim Salau <maksim.salau@gmail.com>
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
