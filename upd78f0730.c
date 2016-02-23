@@ -49,7 +49,6 @@ static int upd78f0730_tiocmset(struct tty_struct *tty,
 			unsigned int set, unsigned int clear);
 static void upd78f0730_dtr_rts(struct usb_serial_port *port, int on);
 static void upd78f0730_break_ctl(struct tty_struct *tty, int break_state);
-static int upd78f0730_suspend(struct usb_serial *serial, pm_message_t message);
 
 static struct usb_serial_driver upd78f0730_device = {
 	.driver	 = {
@@ -69,7 +68,6 @@ static struct usb_serial_driver upd78f0730_device = {
 	.tiocmset	= upd78f0730_tiocmset,
 	.dtr_rts	= upd78f0730_dtr_rts,
 	.break_ctl	= upd78f0730_break_ctl,
-	.suspend	= upd78f0730_suspend
 };
 
 static struct usb_serial_driver * const serial_drivers[] = {
@@ -423,12 +421,6 @@ static void upd78f0730_break_ctl(struct tty_struct *tty, int break_state)
 	spin_unlock_irqrestore(&private->lock, flags);
 
 	upd78f0730_send_ctl(port, &request, sizeof request);
-}
-
-static int upd78f0730_suspend(struct usb_serial *serial, pm_message_t message)
-{
-	dev_err(&serial->dev->dev, "%s - suspend is not supported\n", __func__);
-	return -EPERM;
 }
 
 module_usb_serial_driver(serial_drivers, id_table);
