@@ -107,13 +107,13 @@ static struct usb_serial_driver * const serial_drivers[] = {
 #define PORT_OPEN	0x01
 
 #define ERR_CHR_DISABLED	0x00
-#define ERR_CHR_ENABLED 	0x01
+#define ERR_CHR_ENABLED		0x01
 
 struct line_control {
 	__u8	type;
 	__le32	baud_rate;
 	__u8	params;
-} __attribute__((packed));
+} __packed;
 
 struct set_dtr_rts {
 	__u8 type;
@@ -152,13 +152,13 @@ static int upd78f0730_send_ctl(struct usb_serial_port *port,
 	res = usb_control_msg(usbdev, usb_sndctrlpipe(usbdev, 0), 0x00,
 			USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
 			0x0000, 0x0000, data, size, USB_CTRL_SET_TIMEOUT);
-  
+
 	if (res < 0 || res != size) {
 		dev_err(dev, "%s - failed to send request type=%02x, size=%d res=%d\n",
-			__func__, *(__u8*)data, size, res);
+			__func__, *(__u8 *)data, size, res);
 		return -EIO;
 	}
-  
+
 	return 0;
 }
 
@@ -168,7 +168,7 @@ static int upd78f0730_attach(struct usb_serial *serial)
 	struct device *dev = &serial->dev->dev;
 
 	dev_dbg(dev, "%s\n", __func__);
-	private = kzalloc(sizeof *private, GFP_KERNEL);
+	private = kzalloc(sizeof(*private), GFP_KERNEL);
 	if (private == NULL) {
 		dev_err(dev, "%s - unable to allocate memory for private data\n",
 			__func__);
@@ -194,7 +194,7 @@ static int upd78f0730_open(struct tty_struct *tty, struct usb_serial_port *port)
 	int res;
 	unsigned long flags;
 	struct upd78f0730_serial_private *private;
-	struct open_close request_open = { 
+	struct open_close request_open = {
 		.type = OPEN_CLOSE,
 		.open = PORT_OPEN
 	};
@@ -212,9 +212,9 @@ static int upd78f0730_open(struct tty_struct *tty, struct usb_serial_port *port)
 		void	*data;
 		int	size;
 	} *request, requests[] = {
-		{ &request_open, sizeof request_open },
-		{ &request_set_dtr_rts, sizeof request_set_dtr_rts },
-		{ &request_set_err_chr, sizeof request_set_err_chr },
+		{ &request_open, sizeof(request_open) },
+		{ &request_set_dtr_rts, sizeof(request_set_dtr_rts) },
+		{ &request_set_err_chr, sizeof(request_set_err_chr) },
 		{ }
 	};
 
@@ -227,27 +227,26 @@ static int upd78f0730_open(struct tty_struct *tty, struct usb_serial_port *port)
 	request = requests;
 	do {
 		res = upd78f0730_send_ctl(port, request->data, request->size);
-		if (res) {
+		if (res)
 			return res;
-		}
 		++request;
 	} while (request->data != NULL);
 
 	upd78f0730_set_termios(tty, port, NULL);
-  
+
 	return usb_serial_generic_open(tty, port);
 }
 
 static void upd78f0730_close(struct usb_serial_port *port)
 {
-	struct open_close request_close = { 
+	struct open_close request_close = {
 		.type = OPEN_CLOSE,
 		.open = PORT_CLOSE
 	};
 
 	dev_dbg(&port->dev, "%s\n", __func__);
 	usb_serial_generic_close(port);
-	upd78f0730_send_ctl(port, &request_close, sizeof request_close);
+	upd78f0730_send_ctl(port, &request_close, sizeof(request_close));
 }
 
 static void upd78f0730_set_termios(struct tty_struct *tty,
@@ -259,7 +258,7 @@ static void upd78f0730_set_termios(struct tty_struct *tty,
 	struct set_xon_xoff_chr request_xchr = { .type = SET_XON_XOFF_CHR };
 	tcflag_t cflag = tty->termios.c_cflag;
 	speed_t baud_rate = tty_get_baud_rate(tty);
-  
+
 	request.baud_rate = cpu_to_le32(baud_rate);
 	dev_dbg(dev, "%s - baud rate = %d\n", __func__, baud_rate);
 
@@ -315,8 +314,8 @@ static void upd78f0730_set_termios(struct tty_struct *tty,
 		dev_dbg(dev, "%s - no flow control\n", __func__);
 	}
 
-	upd78f0730_send_ctl(port, &request, sizeof request);
-	upd78f0730_send_ctl(port, &request_xchr, sizeof request_xchr);
+	upd78f0730_send_ctl(port, &request, sizeof(request));
+	upd78f0730_send_ctl(port, &request_xchr, sizeof(request_xchr));
 }
 
 static int upd78f0730_tiocmget(struct tty_struct *tty)
@@ -327,12 +326,13 @@ static int upd78f0730_tiocmget(struct tty_struct *tty)
 	struct device *dev = tty->dev;
 	struct upd78f0730_serial_private *private;
 	struct usb_serial_port *port = tty->driver_data;
+
 	private = usb_get_serial_data(port->serial);
 
 	spin_lock_irqsave(&private->lock, flags);
 	signals = private->line_signals;
 	spin_unlock_irqrestore(&private->lock, flags);
-  
+
 	res = ((signals & RESET_DTR) ? 0 : TIOCM_DTR)
 		| ((signals & RESET_RTS) ? 0 : TIOCM_RTS);
 
@@ -350,6 +350,7 @@ static int upd78f0730_tiocmset(struct tty_struct *tty,
 	struct upd78f0730_serial_private *private;
 	struct usb_serial_port *port = tty->driver_data;
 	struct set_dtr_rts request = { .type = SET_DTR_RTS };
+
 	private = usb_get_serial_data(port->serial);
 
 	dev_dbg(dev, "%s\n", __func__);
@@ -373,8 +374,8 @@ static int upd78f0730_tiocmset(struct tty_struct *tty,
 	request.params = private->line_signals;
 	spin_unlock_irqrestore(&private->lock, flags);
 
-	res = upd78f0730_send_ctl(port, &request, sizeof request);
-  
+	res = upd78f0730_send_ctl(port, &request, sizeof(request));
+
 	return res;
 }
 
@@ -384,6 +385,7 @@ static void upd78f0730_dtr_rts(struct usb_serial_port *port, int on)
 	struct device *dev = &port->dev;
 	struct upd78f0730_serial_private *private;
 	struct set_dtr_rts request = { .type = SET_DTR_RTS };
+
 	private = usb_get_serial_data(port->serial);
 
 	spin_lock_irqsave(&private->lock, flags);
@@ -397,7 +399,7 @@ static void upd78f0730_dtr_rts(struct usb_serial_port *port, int on)
 	request.params = private->line_signals;
 	spin_unlock_irqrestore(&private->lock, flags);
 
-	upd78f0730_send_ctl(port, &request, sizeof request);
+	upd78f0730_send_ctl(port, &request, sizeof(request));
 }
 
 static void upd78f0730_break_ctl(struct tty_struct *tty, int break_state)
@@ -407,6 +409,7 @@ static void upd78f0730_break_ctl(struct tty_struct *tty, int break_state)
 	struct upd78f0730_serial_private *private;
 	struct usb_serial_port *port = tty->driver_data;
 	struct set_dtr_rts request = { .type = SET_DTR_RTS };
+
 	private = usb_get_serial_data(port->serial);
 
 	spin_lock_irqsave(&private->lock, flags);
@@ -420,7 +423,7 @@ static void upd78f0730_break_ctl(struct tty_struct *tty, int break_state)
 	request.params = private->line_signals;
 	spin_unlock_irqrestore(&private->lock, flags);
 
-	upd78f0730_send_ctl(port, &request, sizeof request);
+	upd78f0730_send_ctl(port, &request, sizeof(request));
 }
 
 module_usb_serial_driver(serial_drivers, id_table);
