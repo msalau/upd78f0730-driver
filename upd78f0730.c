@@ -110,30 +110,30 @@ static struct usb_serial_driver * const serial_drivers[] = {
 #define ERR_CHR_ENABLED		0x01
 
 struct line_control {
-	__u8	type;
+	__u8	opcode;
 	__le32	baud_rate;
 	__u8	params;
 } __packed;
 
 struct set_dtr_rts {
-	__u8 type;
+	__u8 opcode;
 	__u8 params;
 };
 
 struct set_xon_xoff_chr {
-	__u8 type;
+	__u8 opcode;
 	__u8 xon;
 	__u8 xoff;
 };
 
 struct open_close {
-	__u8 type;
-	__u8 open;
+	__u8 opcode;
+	__u8 state;
 };
 
 struct set_err_chr {
-	__u8 type;
-	__u8 open;
+	__u8 opcode;
+	__u8 state;
 	__u8 err_char;
 };
 
@@ -154,7 +154,7 @@ static int upd78f0730_send_ctl(struct usb_serial_port *port,
 			0x0000, 0x0000, data, size, USB_CTRL_SET_TIMEOUT);
 
 	if (res < 0 || res != size) {
-		dev_err(dev, "%s - failed to send request type=%02x, size=%d res=%d\n",
+		dev_err(dev, "%s - failed to send request opcode=%02x, size=%d res=%d\n",
 			__func__, *(__u8 *)data, size, res);
 		return -EIO;
 	}
@@ -195,16 +195,16 @@ static int upd78f0730_open(struct tty_struct *tty, struct usb_serial_port *port)
 	unsigned long flags;
 	struct upd78f0730_serial_private *private;
 	struct open_close request_open = {
-		.type = OPEN_CLOSE,
-		.open = PORT_OPEN
+		.opcode = OPEN_CLOSE,
+		.state = PORT_OPEN
 	};
 	struct set_dtr_rts request_set_dtr_rts = {
-		.type = SET_DTR_RTS,
+		.opcode = SET_DTR_RTS,
 		.params = RESET_DTR | RESET_RTS
 	};
 	struct set_err_chr request_set_err_chr = {
-		.type = SET_ERR_CHR,
-		.open = ERR_CHR_DISABLED,
+		.opcode = SET_ERR_CHR,
+		.state = ERR_CHR_DISABLED,
 		.err_char = 0
 	};
 
@@ -240,8 +240,8 @@ static int upd78f0730_open(struct tty_struct *tty, struct usb_serial_port *port)
 static void upd78f0730_close(struct usb_serial_port *port)
 {
 	struct open_close request_close = {
-		.type = OPEN_CLOSE,
-		.open = PORT_CLOSE
+		.opcode = OPEN_CLOSE,
+		.state = PORT_CLOSE
 	};
 
 	dev_dbg(&port->dev, "%s\n", __func__);
@@ -254,8 +254,8 @@ static void upd78f0730_set_termios(struct tty_struct *tty,
 				struct ktermios *old_termios)
 {
 	struct device *dev = &port->dev;
-	struct line_control request = { .type = LINE_CONTROL };
-	struct set_xon_xoff_chr request_xchr = { .type = SET_XON_XOFF_CHR };
+	struct line_control request = { .opcode = LINE_CONTROL };
+	struct set_xon_xoff_chr request_xchr = { .opcode = SET_XON_XOFF_CHR };
 	tcflag_t cflag = tty->termios.c_cflag;
 	speed_t baud_rate = tty_get_baud_rate(tty);
 
@@ -349,7 +349,7 @@ static int upd78f0730_tiocmset(struct tty_struct *tty,
 	struct device *dev = tty->dev;
 	struct upd78f0730_serial_private *private;
 	struct usb_serial_port *port = tty->driver_data;
-	struct set_dtr_rts request = { .type = SET_DTR_RTS };
+	struct set_dtr_rts request = { .opcode = SET_DTR_RTS };
 
 	private = usb_get_serial_data(port->serial);
 
@@ -384,7 +384,7 @@ static void upd78f0730_dtr_rts(struct usb_serial_port *port, int on)
 	unsigned long flags;
 	struct device *dev = &port->dev;
 	struct upd78f0730_serial_private *private;
-	struct set_dtr_rts request = { .type = SET_DTR_RTS };
+	struct set_dtr_rts request = { .opcode = SET_DTR_RTS };
 
 	private = usb_get_serial_data(port->serial);
 
@@ -408,7 +408,7 @@ static void upd78f0730_break_ctl(struct tty_struct *tty, int break_state)
 	struct device *dev = tty->dev;
 	struct upd78f0730_serial_private *private;
 	struct usb_serial_port *port = tty->driver_data;
-	struct set_dtr_rts request = { .type = SET_DTR_RTS };
+	struct set_dtr_rts request = { .opcode = SET_DTR_RTS };
 
 	private = usb_get_serial_data(port->serial);
 
