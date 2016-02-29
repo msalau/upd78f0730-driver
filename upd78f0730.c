@@ -96,79 +96,79 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	NULL
 };
 
-/* Opcodes of control commands */
-#define LINE_CONTROL		0x00
-#define SET_DTR_RTS		0x01
-#define SET_XON_XOFF_CHR	0x02
-#define OPEN_CLOSE		0x03
-#define SET_ERR_CHR		0x04
+/* Op-codes of control commands */
+#define UPD78F0730_CMD_LINE_CONTROL	0x00
+#define UPD78F0730_CMD_SET_DTR_RTS	0x01
+#define UPD78F0730_CMD_SET_XON_XOFF_CHR	0x02
+#define UPD78F0730_CMD_OPEN_CLOSE	0x03
+#define UPD78F0730_CMD_SET_ERR_CHR	0x04
 
-/* Data sizes in LINE_CONTROL command */
-#define DATA_SIZE_7_BITS	0x00
-#define DATA_SIZE_8_BITS	0x01
-#define DATA_SIZE_MASK		0x01
+/* Data sizes in UPD78F0730_CMD_LINE_CONTROL command */
+#define UPD78F0730_DATA_SIZE_7_BITS	0x00
+#define UPD78F0730_DATA_SIZE_8_BITS	0x01
+#define UPD78F0730_DATA_SIZE_MASK	0x01
 
-/* Stop-bit modes in LINE_CONTROL command */
-#define STOP_BIT_1_BIT	0x00
-#define STOP_BIT_2_BIT	0x02
-#define STOP_BIT_MASK	0x02
+/* Stop-bit modes in UPD78F0730_CMD_LINE_CONTROL command */
+#define UPD78F0730_STOP_BIT_1_BIT	0x00
+#define UPD78F0730_STOP_BIT_2_BIT	0x02
+#define UPD78F0730_STOP_BIT_MASK	0x02
 
-/* Parity modes in LINE_CONTROL command */
-#define PARITY_NONE	0x00
-#define PARITY_EVEN	0x04
-#define PARITY_ODD	0x08
-#define PARITY_MASK	0x0C
+/* Parity modes in UPD78F0730_CMD_LINE_CONTROL command */
+#define UPD78F0730_PARITY_NONE	0x00
+#define UPD78F0730_PARITY_EVEN	0x04
+#define UPD78F0730_PARITY_ODD	0x08
+#define UPD78F0730_PARITY_MASK	0x0C
 
-/* Flow control modes in LINE_CONTROL command */
-#define FLOW_CONTROL_NONE	0x00
-#define FLOW_CONTROL_HW		0x10
-#define FLOW_CONTROL_SW		0x20
-#define FLOW_CONTROL_MASK	0x30
+/* Flow control modes in UPD78F0730_CMD_LINE_CONTROL command */
+#define UPD78F0730_FLOW_CONTROL_NONE	0x00
+#define UPD78F0730_FLOW_CONTROL_HW	0x10
+#define UPD78F0730_FLOW_CONTROL_SW	0x20
+#define UPD78F0730_FLOW_CONTROL_MASK	0x30
 
-/* Control signal bits in SET_DTR_RTS command */
-#define RESET_RTS	0x01
-#define RESET_DTR	0x02
-#define SET_BREAK	0x04
+/* Control signal bits in UPD78F0730_CMD_SET_DTR_RTS command */
+#define UPD78F0730_RESET_RTS	0x01
+#define UPD78F0730_RESET_DTR	0x02
+#define UPD78F0730_SET_BREAK	0x04
 
-/* Port modes in OPEN_CLOSE command */
-#define PORT_CLOSE	0x00
-#define PORT_OPEN	0x01
+/* Port modes in UPD78F0730_CMD_OPEN_CLOSE command */
+#define UPD78F0730_PORT_CLOSE	0x00
+#define UPD78F0730_PORT_OPEN	0x01
 
-/* Error character substitution modes in SET_ERR_CHR command */
-#define ERR_CHR_DISABLED	0x00
-#define ERR_CHR_ENABLED		0x01
+/* Error character substitution modes in UPD78F0730_CMD_SET_ERR_CHR command */
+#define UPD78F0730_ERR_CHR_DISABLED	0x00
+#define UPD78F0730_ERR_CHR_ENABLED	0x01
 
 /*
  * Declaration of command structures
  */
 
-/* LINE_CONTROL command */
+/* UPD78F0730_CMD_LINE_CONTROL command */
 struct line_control {
 	__u8	opcode;
 	__le32	baud_rate;
 	__u8	params;
 } __packed;
 
-/* SET_DTR_RTS command */
+/* UPD78F0730_CMD_SET_DTR_RTS command */
 struct set_dtr_rts {
 	__u8 opcode;
 	__u8 params;
 };
 
-/* SET_XON_OFF_CHR command */
+/* UPD78F0730_CMD_SET_XON_OFF_CHR command */
 struct set_xon_xoff_chr {
 	__u8 opcode;
 	__u8 xon;
 	__u8 xoff;
 };
 
-/* OPEN_CLOSE command */
+/* UPD78F0730_CMD_OPEN_CLOSE command */
 struct open_close {
 	__u8 opcode;
 	__u8 state;
 };
 
-/* SET_ERR_CHR command */
+/* UPD78F0730_CMD_SET_ERR_CHR command */
 struct set_err_chr {
 	__u8 opcode;
 	__u8 state;
@@ -199,7 +199,8 @@ static int upd78f0730_send_ctl(struct usb_serial_port *port,
 			0x0000, 0x0000, data, size, USB_CTRL_SET_TIMEOUT);
 
 	if (res < 0 || res != size) {
-		dev_err(dev, "%s - failed to send request opcode=%02x, size=%d res=%d\n",
+		dev_err(dev,
+			"%s - send failed: opcode=%02x, size=%d, res=%d\n",
 			__func__, *(__u8 *)data, size, res);
 		return -EIO;
 	}
@@ -220,12 +221,12 @@ static int upd78f0730_attach(struct usb_serial *serial)
 	dev_dbg(dev, "%s\n", __func__);
 	private = kzalloc(sizeof(*private), GFP_KERNEL);
 	if (private == NULL) {
-		dev_err(dev, "%s - unable to allocate memory for private data\n",
+		dev_err(dev, "%s - unable to allocate memory\n",
 			__func__);
 		return -ENOMEM;
 	}
 	spin_lock_init(&private->lock);
-	private->line_signals = RESET_DTR | RESET_RTS;
+	private->line_signals = UPD78F0730_RESET_DTR | UPD78F0730_RESET_RTS;
 	usb_set_serial_data(serial, private);
 	return 0;
 }
@@ -261,16 +262,16 @@ static int upd78f0730_open(struct tty_struct *tty, struct usb_serial_port *port)
 	unsigned long flags;
 	struct upd78f0730_serial_private *private;
 	struct open_close request_open = {
-		.opcode = OPEN_CLOSE,
-		.state = PORT_OPEN
+		.opcode = UPD78F0730_CMD_OPEN_CLOSE,
+		.state = UPD78F0730_PORT_OPEN
 	};
 	struct set_dtr_rts request_set_dtr_rts = {
-		.opcode = SET_DTR_RTS,
-		.params = RESET_DTR | RESET_RTS
+		.opcode = UPD78F0730_CMD_SET_DTR_RTS,
+		.params = UPD78F0730_RESET_DTR | UPD78F0730_RESET_RTS
 	};
 	struct set_err_chr request_set_err_chr = {
-		.opcode = SET_ERR_CHR,
-		.state = ERR_CHR_DISABLED,
+		.opcode = UPD78F0730_CMD_SET_ERR_CHR,
+		.state = UPD78F0730_ERR_CHR_DISABLED,
 		.err_char = 0
 	};
 
@@ -314,8 +315,8 @@ static int upd78f0730_open(struct tty_struct *tty, struct usb_serial_port *port)
 static void upd78f0730_close(struct usb_serial_port *port)
 {
 	struct open_close request_close = {
-		.opcode = OPEN_CLOSE,
-		.state = PORT_CLOSE
+		.opcode = UPD78F0730_CMD_OPEN_CLOSE,
+		.state = UPD78F0730_PORT_CLOSE
 	};
 
 	dev_dbg(&port->dev, "%s\n", __func__);
@@ -336,14 +337,16 @@ static void upd78f0730_set_termios(struct tty_struct *tty,
 				struct ktermios *old_termios)
 {
 	struct device *dev = &port->dev;
-	struct line_control request = { .opcode = LINE_CONTROL };
-	struct set_xon_xoff_chr request_xchr = { .opcode = SET_XON_XOFF_CHR };
+	struct line_control request;
+	struct set_xon_xoff_chr request_xchr;
 	tcflag_t cflag = tty->termios.c_cflag;
 	speed_t baud_rate = tty_get_baud_rate(tty);
 
+	request.opcode = UPD78F0730_CMD_LINE_CONTROL;
 	request.baud_rate = cpu_to_le32(baud_rate);
 	dev_dbg(dev, "%s - baud rate = %d\n", __func__, baud_rate);
 
+	request_xchr.opcode = UPD78F0730_CMD_SET_XON_XOFF_CHR;
 	request_xchr.xon = START_CHAR(tty);
 	request_xchr.xoff = STOP_CHAR(tty);
 	dev_dbg(dev, "%s - XON = %02X, XOFF = %02X\n", __func__,
@@ -352,36 +355,36 @@ static void upd78f0730_set_termios(struct tty_struct *tty,
 	request.params = 0;
 	switch (cflag & CSIZE) {
 	case CS7:
-		request.params |= DATA_SIZE_7_BITS;
+		request.params |= UPD78F0730_DATA_SIZE_7_BITS;
 		dev_dbg(dev, "%s - 7 data bits\n", __func__);
 		break;
 	case CS8:
-		request.params |= DATA_SIZE_8_BITS;
+		request.params |= UPD78F0730_DATA_SIZE_8_BITS;
 		dev_dbg(dev, "%s - 8 data bits\n", __func__);
 		break;
 	default:
-		request.params |= DATA_SIZE_8_BITS;
-		dev_err(dev, "%s - data size is not supported, falling back to 8 bits\n",
+		request.params |= UPD78F0730_DATA_SIZE_8_BITS;
+		dev_err(dev, "%s - data size is not supported, using 8 bits\n",
 			__func__);
 		break;
 	}
 	if (cflag & PARENB) {
 		if (cflag & PARODD) {
-			request.params |= PARITY_ODD;
+			request.params |= UPD78F0730_PARITY_ODD;
 			dev_dbg(dev, "%s - odd parity\n", __func__);
 		} else {
-			request.params |= PARITY_EVEN;
+			request.params |= UPD78F0730_PARITY_EVEN;
 			dev_dbg(dev, "%s - even parity\n", __func__);
 		}
 	} else {
-		request.params |= PARITY_NONE;
+		request.params |= UPD78F0730_PARITY_NONE;
 		dev_dbg(dev, "%s - no parity\n", __func__);
 	}
 	if (cflag & CSTOPB) {
-		request.params |= STOP_BIT_2_BIT;
+		request.params |= UPD78F0730_STOP_BIT_2_BIT;
 		dev_dbg(dev, "%s - 2 stop bits\n", __func__);
 	} else {
-		request.params |= STOP_BIT_1_BIT;
+		request.params |= UPD78F0730_STOP_BIT_1_BIT;
 		dev_dbg(dev, "%s - 1 stop bit\n", __func__);
 	}
 	if (cflag & CRTSCTS) {
@@ -389,10 +392,10 @@ static void upd78f0730_set_termios(struct tty_struct *tty,
 			__func__);
 	}
 	if (I_IXOFF(tty) || I_IXON(tty)) {
-		request.params |= FLOW_CONTROL_SW;
+		request.params |= UPD78F0730_FLOW_CONTROL_SW;
 		dev_dbg(dev, "%s - software flow control\n", __func__);
 	} else {
-		request.params |= FLOW_CONTROL_NONE;
+		request.params |= UPD78F0730_FLOW_CONTROL_NONE;
 		dev_dbg(dev, "%s - no flow control\n", __func__);
 	}
 
@@ -421,8 +424,8 @@ static int upd78f0730_tiocmget(struct tty_struct *tty)
 	signals = private->line_signals;
 	spin_unlock_irqrestore(&private->lock, flags);
 
-	res = ((signals & RESET_DTR) ? 0 : TIOCM_DTR)
-		| ((signals & RESET_RTS) ? 0 : TIOCM_RTS);
+	res = ((signals & UPD78F0730_RESET_DTR) ? 0 : TIOCM_DTR)
+		| ((signals & UPD78F0730_RESET_RTS) ? 0 : TIOCM_RTS);
 
 	dev_dbg(dev, "%s - res = %x\n", __func__, res);
 
@@ -442,26 +445,26 @@ static int upd78f0730_tiocmset(struct tty_struct *tty,
 	struct device *dev = tty->dev;
 	struct upd78f0730_serial_private *private;
 	struct usb_serial_port *port = tty->driver_data;
-	struct set_dtr_rts request = { .opcode = SET_DTR_RTS };
+	struct set_dtr_rts request = { .opcode = UPD78F0730_CMD_SET_DTR_RTS };
 
 	private = usb_get_serial_data(port->serial);
 
 	dev_dbg(dev, "%s\n", __func__);
 	spin_lock_irqsave(&private->lock, flags);
 	if (set & TIOCM_DTR) {
-		private->line_signals &= ~RESET_DTR;
+		private->line_signals &= ~UPD78F0730_RESET_DTR;
 		dev_dbg(dev, "%s - set DTR\n", __func__);
 	}
 	if (set & TIOCM_RTS) {
-		private->line_signals &= ~RESET_RTS;
+		private->line_signals &= ~UPD78F0730_RESET_RTS;
 		dev_dbg(dev, "%s - set RTS\n", __func__);
 	}
 	if (clear & TIOCM_DTR) {
-		private->line_signals |= RESET_DTR;
+		private->line_signals |= UPD78F0730_RESET_DTR;
 		dev_dbg(dev, "%s - reset DTR\n", __func__);
 	}
 	if (clear & TIOCM_RTS) {
-		private->line_signals |= RESET_RTS;
+		private->line_signals |= UPD78F0730_RESET_RTS;
 		dev_dbg(dev, "%s - reset RTS\n", __func__);
 	}
 	request.params = private->line_signals;
@@ -481,16 +484,18 @@ static void upd78f0730_dtr_rts(struct usb_serial_port *port, int on)
 	unsigned long flags;
 	struct device *dev = &port->dev;
 	struct upd78f0730_serial_private *private;
-	struct set_dtr_rts request = { .opcode = SET_DTR_RTS };
+	struct set_dtr_rts request = { .opcode = UPD78F0730_CMD_SET_DTR_RTS };
 
 	private = usb_get_serial_data(port->serial);
 
 	spin_lock_irqsave(&private->lock, flags);
 	if (on) {
-		private->line_signals &= ~(RESET_DTR | RESET_RTS);
+		private->line_signals &= ~UPD78F0730_RESET_DTR;
+		private->line_signals &= ~UPD78F0730_RESET_RTS;
 		dev_dbg(dev, "%s - set DTR and RTS\n", __func__);
 	} else {
-		private->line_signals |= RESET_DTR | RESET_RTS;
+		private->line_signals |= UPD78F0730_RESET_DTR;
+		private->line_signals |= UPD78F0730_RESET_RTS;
 		dev_dbg(dev, "%s - reset DTR and RTS\n", __func__);
 	}
 	request.params = private->line_signals;
@@ -504,7 +509,8 @@ static void upd78f0730_dtr_rts(struct usb_serial_port *port, int on)
  * Control BREAK signal.
  * The BREAK signal is not covered in the specification of the adaptor.
  * It's behavior was sniffed from the original driver for Windows.
- * BREAK is controlled by a bit in the 'params' field of SET_DTR_RTS command.
+ * BREAK is controlled by a bit in the 'params' field of
+ * UPD78F0730_CMD_SET_DTR_RTS command.
  */
 static void upd78f0730_break_ctl(struct tty_struct *tty, int break_state)
 {
@@ -512,16 +518,16 @@ static void upd78f0730_break_ctl(struct tty_struct *tty, int break_state)
 	struct device *dev = tty->dev;
 	struct upd78f0730_serial_private *private;
 	struct usb_serial_port *port = tty->driver_data;
-	struct set_dtr_rts request = { .opcode = SET_DTR_RTS };
+	struct set_dtr_rts request = { .opcode = UPD78F0730_CMD_SET_DTR_RTS };
 
 	private = usb_get_serial_data(port->serial);
 
 	spin_lock_irqsave(&private->lock, flags);
 	if (break_state) {
-		private->line_signals |= SET_BREAK;
+		private->line_signals |= UPD78F0730_SET_BREAK;
 		dev_dbg(dev, "%s - set BREAK\n", __func__);
 	} else {
-		private->line_signals &= ~SET_BREAK;
+		private->line_signals &= ~UPD78F0730_SET_BREAK;
 		dev_dbg(dev, "%s - reset BREAK\n", __func__);
 	}
 	request.params = private->line_signals;
