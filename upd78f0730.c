@@ -337,13 +337,13 @@ static void upd78f0730_set_termios(struct tty_struct *tty,
 				struct ktermios *old_termios)
 {
 	struct device *dev = &port->dev;
-	struct line_control request;
+	struct line_control request_control;
 	struct set_xon_xoff_chr request_xchr;
 	tcflag_t cflag = tty->termios.c_cflag;
 	speed_t baud_rate = tty_get_baud_rate(tty);
 
-	request.opcode = UPD78F0730_CMD_LINE_CONTROL;
-	request.baud_rate = cpu_to_le32(baud_rate);
+	request_control.opcode = UPD78F0730_CMD_LINE_CONTROL;
+	request_control.baud_rate = cpu_to_le32(baud_rate);
 	dev_dbg(dev, "%s - baud rate = %d\n", __func__, baud_rate);
 
 	request_xchr.opcode = UPD78F0730_CMD_SET_XON_XOFF_CHR;
@@ -352,39 +352,39 @@ static void upd78f0730_set_termios(struct tty_struct *tty,
 	dev_dbg(dev, "%s - XON = %02X, XOFF = %02X\n", __func__,
 		request_xchr.xon, request_xchr.xoff);
 
-	request.params = 0;
+	request_control.params = 0;
 	switch (cflag & CSIZE) {
 	case CS7:
-		request.params |= UPD78F0730_DATA_SIZE_7_BITS;
+		request_control.params |= UPD78F0730_DATA_SIZE_7_BITS;
 		dev_dbg(dev, "%s - 7 data bits\n", __func__);
 		break;
 	case CS8:
-		request.params |= UPD78F0730_DATA_SIZE_8_BITS;
+		request_control.params |= UPD78F0730_DATA_SIZE_8_BITS;
 		dev_dbg(dev, "%s - 8 data bits\n", __func__);
 		break;
 	default:
-		request.params |= UPD78F0730_DATA_SIZE_8_BITS;
+		request_control.params |= UPD78F0730_DATA_SIZE_8_BITS;
 		dev_err(dev, "%s - data size is not supported, using 8 bits\n",
 			__func__);
 		break;
 	}
 	if (cflag & PARENB) {
 		if (cflag & PARODD) {
-			request.params |= UPD78F0730_PARITY_ODD;
+			request_control.params |= UPD78F0730_PARITY_ODD;
 			dev_dbg(dev, "%s - odd parity\n", __func__);
 		} else {
-			request.params |= UPD78F0730_PARITY_EVEN;
+			request_control.params |= UPD78F0730_PARITY_EVEN;
 			dev_dbg(dev, "%s - even parity\n", __func__);
 		}
 	} else {
-		request.params |= UPD78F0730_PARITY_NONE;
+		request_control.params |= UPD78F0730_PARITY_NONE;
 		dev_dbg(dev, "%s - no parity\n", __func__);
 	}
 	if (cflag & CSTOPB) {
-		request.params |= UPD78F0730_STOP_BIT_2_BIT;
+		request_control.params |= UPD78F0730_STOP_BIT_2_BIT;
 		dev_dbg(dev, "%s - 2 stop bits\n", __func__);
 	} else {
-		request.params |= UPD78F0730_STOP_BIT_1_BIT;
+		request_control.params |= UPD78F0730_STOP_BIT_1_BIT;
 		dev_dbg(dev, "%s - 1 stop bit\n", __func__);
 	}
 	if (cflag & CRTSCTS) {
@@ -392,14 +392,14 @@ static void upd78f0730_set_termios(struct tty_struct *tty,
 			__func__);
 	}
 	if (I_IXOFF(tty) || I_IXON(tty)) {
-		request.params |= UPD78F0730_FLOW_CONTROL_SW;
+		request_control.params |= UPD78F0730_FLOW_CONTROL_SW;
 		dev_dbg(dev, "%s - software flow control\n", __func__);
 	} else {
-		request.params |= UPD78F0730_FLOW_CONTROL_NONE;
+		request_control.params |= UPD78F0730_FLOW_CONTROL_NONE;
 		dev_dbg(dev, "%s - no flow control\n", __func__);
 	}
 
-	upd78f0730_send_ctl(port, &request, sizeof(request));
+	upd78f0730_send_ctl(port, &request_control, sizeof(request_control));
 	upd78f0730_send_ctl(port, &request_xchr, sizeof(request_xchr));
 }
 
