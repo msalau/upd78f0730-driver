@@ -50,7 +50,7 @@ MODULE_DEVICE_TABLE(usb, id_table);
  * state of control signals (DTR, RTS and BREAK).
  */
 struct upd78f0730_serial_private {
-	spinlock_t	lock;
+	spinlock_t	lock;	      /* spinlock for line_signals */
 	__u8		line_signals;
 };
 
@@ -189,7 +189,7 @@ static int upd78f0730_send_ctl(struct usb_serial_port *port,
 	struct device *dev = &port->dev;
 	struct usb_device *usbdev = port->serial->dev;
 
-	if (port == NULL || data == NULL || size == 0) {
+	if (!port || !data || size == 0) {
 		dev_err(dev, "%s - invalid arguments\n", __func__);
 		return -EINVAL;
 	}
@@ -220,7 +220,7 @@ static int upd78f0730_attach(struct usb_serial *serial)
 
 	dev_dbg(dev, "%s\n", __func__);
 	private = kzalloc(sizeof(*private), GFP_KERNEL);
-	if (private == NULL) {
+	if (!private) {
 		dev_err(dev, "%s - unable to allocate memory\n",
 			__func__);
 		return -ENOMEM;
@@ -297,7 +297,7 @@ static int upd78f0730_open(struct tty_struct *tty, struct usb_serial_port *port)
 		if (res)
 			return res;
 		++request;
-	} while (request->data != NULL);
+	} while (request->data);
 
 	upd78f0730_set_termios(tty, port, NULL);
 
