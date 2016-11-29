@@ -54,46 +54,6 @@ struct upd78f0730_serial_private {
 	u8		line_signals;
 };
 
-/* Function prototypes */
-static int upd78f0730_send_ctl(struct usb_serial_port *port,
-			void *data, int size);
-static int upd78f0730_attach(struct usb_serial *serial);
-static void upd78f0730_release(struct usb_serial *serial);
-static int upd78f0730_open(struct tty_struct *tty,
-			struct usb_serial_port *port);
-static void upd78f0730_close(struct usb_serial_port *port);
-static void upd78f0730_set_termios(struct tty_struct *tty,
-				struct usb_serial_port *port,
-				struct ktermios *old_termios);
-static int upd78f0730_tiocmget(struct tty_struct *tty);
-static int upd78f0730_tiocmset(struct tty_struct *tty,
-			unsigned int set, unsigned int clear);
-static void upd78f0730_dtr_rts(struct usb_serial_port *port, int on);
-static void upd78f0730_break_ctl(struct tty_struct *tty, int break_state);
-
-static struct usb_serial_driver upd78f0730_device = {
-	.driver	 = {
-		.owner	= THIS_MODULE,
-		.name	= "upd78f0730",
-	},
-	.id_table	= id_table,
-	.num_ports	= 1,
-	.attach		= upd78f0730_attach,
-	.release	= upd78f0730_release,
-	.open		= upd78f0730_open,
-	.close		= upd78f0730_close,
-	.set_termios	= upd78f0730_set_termios,
-	.tiocmget	= upd78f0730_tiocmget,
-	.tiocmset	= upd78f0730_tiocmset,
-	.dtr_rts	= upd78f0730_dtr_rts,
-	.break_ctl	= upd78f0730_break_ctl,
-};
-
-static struct usb_serial_driver * const serial_drivers[] = {
-	&upd78f0730_device,
-	NULL
-};
-
 /* Op-codes of control commands */
 #define UPD78F0730_CMD_LINE_CONTROL	0x00
 #define UPD78F0730_CMD_SET_DTR_RTS	0x01
@@ -245,84 +205,6 @@ static void upd78f0730_release(struct usb_serial *serial)
 }
 
 /*
- * upd78f0730_open
- * The function is called when software opens the port
- * that is associated with the adaptor.
- * The function performs basic initialization of the adaptor:
- *  1. opens port;
- *  2. sets initial state for DTR and RTS;
- *  3. disables error character substitution.
- * The driver can control the state of the adaptor only if the port is opened.
- */
-static int upd78f0730_open(struct tty_struct *tty, struct usb_serial_port *port)
-{
-	int res;
-	unsigned long flags;
-	struct upd78f0730_serial_private *private;
-	struct open_close request_open = {
-		.opcode = UPD78F0730_CMD_OPEN_CLOSE,
-		.state = UPD78F0730_PORT_OPEN
-	};
-	struct set_dtr_rts request_set_dtr_rts = {
-		.opcode = UPD78F0730_CMD_SET_DTR_RTS,
-		.params = UPD78F0730_RESET_DTR | UPD78F0730_RESET_RTS
-	};
-	struct set_err_chr request_set_err_chr = {
-		.opcode = UPD78F0730_CMD_SET_ERR_CHR,
-		.state = UPD78F0730_ERR_CHR_DISABLED,
-		.err_char = 0
-	};
-
-	struct {
-		void	*data;
-		int	size;
-	} *request, requests[] = {
-		{ &request_open, sizeof(request_open) },
-		{ &request_set_dtr_rts, sizeof(request_set_dtr_rts) },
-		{ &request_set_err_chr, sizeof(request_set_err_chr) },
-		{ }
-	};
-
-	dev_dbg(&port->dev, "%s\n", __func__);
-	private = usb_get_serial_data(port->serial);
-	spin_lock_irqsave(&private->lock, flags);
-	request_set_dtr_rts.params = private->line_signals;
-	spin_unlock_irqrestore(&private->lock, flags);
-
-	request = requests;
-	do {
-		res = upd78f0730_send_ctl(port, request->data, request->size);
-		if (res)
-			return res;
-		++request;
-	} while (request->data);
-
-	upd78f0730_set_termios(tty, port, NULL);
-
-	return usb_serial_generic_open(tty, port);
-}
-
-/*
- * upd78f0730_close
- * The function is called when the port associated with the adaptor is closed
- * by the host software.
- * The function sends close command to the adaptor. From that moment,
- * driver can't control state of the adaptor
- * (e.g. state of the control signals).
- */
-static void upd78f0730_close(struct usb_serial_port *port)
-{
-	struct open_close request_close = {
-		.opcode = UPD78F0730_CMD_OPEN_CLOSE,
-		.state = UPD78F0730_PORT_CLOSE
-	};
-
-	dev_dbg(&port->dev, "%s\n", __func__);
-	usb_serial_generic_close(port);
-	upd78f0730_send_ctl(port, &request_close, sizeof(request_close));
-}
-
-/*
  * upd78f0730_set_termios
  * Configure the adaptor according to software needs.
  * The driver is not aware of the current configuration of the adaptor,
@@ -399,6 +281,84 @@ static void upd78f0730_set_termios(struct tty_struct *tty,
 
 	upd78f0730_send_ctl(port, &request_control, sizeof(request_control));
 	upd78f0730_send_ctl(port, &request_xchr, sizeof(request_xchr));
+}
+
+/*
+ * upd78f0730_open
+ * The function is called when software opens the port
+ * that is associated with the adaptor.
+ * The function performs basic initialization of the adaptor:
+ *  1. opens port;
+ *  2. sets initial state for DTR and RTS;
+ *  3. disables error character substitution.
+ * The driver can control the state of the adaptor only if the port is opened.
+ */
+static int upd78f0730_open(struct tty_struct *tty, struct usb_serial_port *port)
+{
+	int res;
+	unsigned long flags;
+	struct upd78f0730_serial_private *private;
+	struct open_close request_open = {
+		.opcode = UPD78F0730_CMD_OPEN_CLOSE,
+		.state = UPD78F0730_PORT_OPEN
+	};
+	struct set_dtr_rts request_set_dtr_rts = {
+		.opcode = UPD78F0730_CMD_SET_DTR_RTS,
+		.params = UPD78F0730_DTR | UPD78F0730_RTS
+	};
+	struct set_err_chr request_set_err_chr = {
+		.opcode = UPD78F0730_CMD_SET_ERR_CHR,
+		.state = UPD78F0730_ERR_CHR_DISABLED,
+		.err_char = 0
+	};
+
+	struct {
+		void	*data;
+		int	size;
+	} *request, requests[] = {
+		{ &request_open, sizeof(request_open) },
+		{ &request_set_dtr_rts, sizeof(request_set_dtr_rts) },
+		{ &request_set_err_chr, sizeof(request_set_err_chr) },
+		{ }
+	};
+
+	dev_dbg(&port->dev, "%s\n", __func__);
+	private = usb_get_serial_data(port->serial);
+	spin_lock_irqsave(&private->lock, flags);
+	request_set_dtr_rts.params = private->line_signals;
+	spin_unlock_irqrestore(&private->lock, flags);
+
+	request = requests;
+	do {
+		res = upd78f0730_send_ctl(port, request->data, request->size);
+		if (res)
+			return res;
+		++request;
+	} while (request->data);
+
+	upd78f0730_set_termios(tty, port, NULL);
+
+	return usb_serial_generic_open(tty, port);
+}
+
+/*
+ * upd78f0730_close
+ * The function is called when the port associated with the adaptor is closed
+ * by the host software.
+ * The function sends close command to the adaptor. From that moment,
+ * driver can't control state of the adaptor
+ * (e.g. state of the control signals).
+ */
+static void upd78f0730_close(struct usb_serial_port *port)
+{
+	struct open_close request_close = {
+		.opcode = UPD78F0730_CMD_OPEN_CLOSE,
+		.state = UPD78F0730_PORT_CLOSE
+	};
+
+	dev_dbg(&port->dev, "%s\n", __func__);
+	usb_serial_generic_close(port);
+	upd78f0730_send_ctl(port, &request_close, sizeof(request_close));
 }
 
 /*
@@ -533,6 +493,29 @@ static void upd78f0730_break_ctl(struct tty_struct *tty, int break_state)
 
 	upd78f0730_send_ctl(port, &request, sizeof(request));
 }
+
+static struct usb_serial_driver upd78f0730_device = {
+	.driver	 = {
+		.owner	= THIS_MODULE,
+		.name	= "upd78f0730",
+	},
+	.id_table	= id_table,
+	.num_ports	= 1,
+	.attach		= upd78f0730_attach,
+	.release	= upd78f0730_release,
+	.open		= upd78f0730_open,
+	.close		= upd78f0730_close,
+	.set_termios	= upd78f0730_set_termios,
+	.tiocmget	= upd78f0730_tiocmget,
+	.tiocmset	= upd78f0730_tiocmset,
+	.dtr_rts	= upd78f0730_dtr_rts,
+	.break_ctl	= upd78f0730_break_ctl,
+};
+
+static struct usb_serial_driver * const serial_drivers[] = {
+	&upd78f0730_device,
+	NULL
+};
 
 module_usb_serial_driver(serial_drivers, id_table);
 
