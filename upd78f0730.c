@@ -16,11 +16,13 @@
  * - data bits: 7 or 8
  * - stop bits: 1 or 2
  * - parity: even, odd or none
- * - flow control: XON/XOFF or none
- * - baudrates: 2400, 4800, 9600, 19200, 38400, 57600, 115200
+ * - flow control: hardware or none
+ * - baud rates: 2400, 4800, 9600, 19200, 38400, 57600, 115200
  * - signals: DTS, RTS and BREAK
  * - there is an option to enable parity error character substitution,
- *   but it is not supported by this driver
+ *   but is not supported by the driver
+ * - XON/XOFF flow control is described in the document,
+ *   but is not supported by the driver
  */
 
 #include <linux/kernel.h>
@@ -192,75 +194,127 @@ static int upd78f0730_port_remove(struct usb_serial_port *port)
 	return 0;
 }
 
+static void upd78f0730_dtr_rts(struct usb_serial_port *port, int on)
+{
+	unsigned long flags;
+	struct device *dev = &port->dev;
+	struct upd78f0730_serial_private *private;
+	struct set_dtr_rts request = { .opcode = UPD78F0730_CMD_SET_DTR_RTS };
+
+	private = usb_get_serial_port_data(port);
+
+	spin_lock_irqsave(&private->lock, flags);
+	if (on) {
+		private->line_signals |= (UPD78F0730_DTR | UPD78F0730_RTS);
+		dev_dbg(dev, "%s - set DTR and RTS\n", __func__);
+	} else {
+		private->line_signals &= ~(UPD78F0730_DTR | UPD78F0730_RTS);
+		dev_dbg(dev, "%s - reset DTR and RTS\n", __func__);
+	}
+	request.params = private->line_signals;
+	spin_unlock_irqrestore(&private->lock, flags);
+
+	upd78f0730_send_ctl(port, &request, sizeof(request));
+}
+
+speed_t upd78f0730_get_baud_rate(struct tty_struct *tty)
+{
+	int i;
+	const tcflag_t baud_rate = C_BAUD(tty);
+	const tcflag_t supported[] = {B2400, B4800, B9600,
+					B19200, B38400, B57600, B115200};
+
+	for (i = ARRAY_SIZE(supported) - 1; i >= 0; i--) {
+		if (baud_rate == supported[i])
+			return tty_get_baud_rate(tty);
+	}
+
+	/* If the baud rate is not supported, switch to the default baud rate */
+	tty->termios.c_cflag &= ~CBAUD;
+	tty->termios.c_cflag |= B9600;
+
+	return tty_get_baud_rate(tty);
+}
+
 static void upd78f0730_set_termios(struct tty_struct *tty,
 				struct usb_serial_port *port,
 				struct ktermios *old_termios)
 {
 	struct device *dev = &port->dev;
 	struct line_control request_control;
-	struct set_xon_xoff_chr request_xchr;
-	tcflag_t cflag = tty->termios.c_cflag;
-	speed_t baud_rate = tty_get_baud_rate(tty);
+	speed_t baud_rate;
 
+	if (old_termios && !tty_termios_hw_change(&tty->termios, old_termios))
+		return;
+
+	if (C_BAUD(tty) == B0)
+		upd78f0730_dtr_rts(port, 0);
+
+	baud_rate = upd78f0730_get_baud_rate(tty);
 	request_control.opcode = UPD78F0730_CMD_LINE_CONTROL;
 	request_control.baud_rate = cpu_to_le32(baud_rate);
+	request_control.params = 0;
 	dev_dbg(dev, "%s - baud rate = %d\n", __func__, baud_rate);
 
-	request_xchr.opcode = UPD78F0730_CMD_SET_XON_XOFF_CHR;
-	request_xchr.xon = START_CHAR(tty);
-	request_xchr.xoff = STOP_CHAR(tty);
-	dev_dbg(dev, "%s - XON = %02X, XOFF = %02X\n", __func__,
-		request_xchr.xon, request_xchr.xoff);
-
-	request_control.params = 0;
-	switch (cflag & CSIZE) {
+	switch (C_CSIZE(tty)) {
 	case CS7:
 		request_control.params |= UPD78F0730_DATA_SIZE_7_BITS;
 		dev_dbg(dev, "%s - 7 data bits\n", __func__);
 		break;
+	default:
+		tty->termios.c_cflag &= ~CSIZE;
+		tty->termios.c_cflag |= CS8;
+		dev_warn(dev, "%s - data size is not supported, using 8 bits\n",
+			__func__);
+		/* fall through */
 	case CS8:
 		request_control.params |= UPD78F0730_DATA_SIZE_8_BITS;
 		dev_dbg(dev, "%s - 8 data bits\n", __func__);
 		break;
-	default:
-		request_control.params |= UPD78F0730_DATA_SIZE_8_BITS;
-		dev_err(dev, "%s - data size is not supported, using 8 bits\n",
-			__func__);
-		break;
 	}
-	if (cflag & PARENB) {
-		if (cflag & PARODD) {
+
+	if (C_PARENB(tty)) {
+		if (C_PARODD(tty)) {
 			request_control.params |= UPD78F0730_PARITY_ODD;
 			dev_dbg(dev, "%s - odd parity\n", __func__);
 		} else {
 			request_control.params |= UPD78F0730_PARITY_EVEN;
 			dev_dbg(dev, "%s - even parity\n", __func__);
 		}
+
+		if (C_CMSPAR(tty)) {
+			tty->termios.c_cflag &= ~CMSPAR;
+			dev_warn(dev, "%s - MARK/SPACE parity is not supported\n",
+				__func__);
+		}
 	} else {
 		request_control.params |= UPD78F0730_PARITY_NONE;
 		dev_dbg(dev, "%s - no parity\n", __func__);
 	}
-	if (cflag & CSTOPB) {
+
+	if (C_CSTOPB(tty)) {
 		request_control.params |= UPD78F0730_STOP_BIT_2_BIT;
 		dev_dbg(dev, "%s - 2 stop bits\n", __func__);
 	} else {
 		request_control.params |= UPD78F0730_STOP_BIT_1_BIT;
 		dev_dbg(dev, "%s - 1 stop bit\n", __func__);
 	}
-	if (cflag & CRTSCTS) {
-		dev_err(dev, "%s - hardware flow control is not supported\n",
-			__func__);
-	}
-	if (I_IXOFF(tty) || I_IXON(tty)) {
-		request_control.params |= UPD78F0730_FLOW_CONTROL_SW;
-		dev_dbg(dev, "%s - software flow control\n", __func__);
+
+	if (C_CRTSCTS(tty)) {
+		request_control.params |= UPD78F0730_FLOW_CONTROL_HW;
+		dev_dbg(dev, "%s - hardware flow control\n", __func__);
 	} else {
 		request_control.params |= UPD78F0730_FLOW_CONTROL_NONE;
 		dev_dbg(dev, "%s - no flow control\n", __func__);
 	}
 
+	if (I_IXOFF(tty) || I_IXON(tty)) {
+		tty->termios.c_iflag &= ~(IXOFF | IXON);
+		dev_warn(dev, "%s - software flow control is not supported\n",
+			__func__);
+	}
+
 	upd78f0730_send_ctl(port, &request_control, sizeof(request_control));
-	upd78f0730_send_ctl(port, &request_xchr, sizeof(request_xchr));
 }
 
 static int upd78f0730_open(struct tty_struct *tty, struct usb_serial_port *port)
@@ -350,31 +404,6 @@ static int upd78f0730_tiocmset(struct tty_struct *tty,
 	res = upd78f0730_send_ctl(port, &request, sizeof(request));
 
 	return res;
-}
-
-static void upd78f0730_dtr_rts(struct usb_serial_port *port, int on)
-{
-	unsigned long flags;
-	struct device *dev = &port->dev;
-	struct upd78f0730_serial_private *private;
-	struct set_dtr_rts request = { .opcode = UPD78F0730_CMD_SET_DTR_RTS };
-
-	private = usb_get_serial_port_data(port);
-
-	spin_lock_irqsave(&private->lock, flags);
-	if (on) {
-		private->line_signals |= UPD78F0730_DTR;
-		private->line_signals |= UPD78F0730_RTS;
-		dev_dbg(dev, "%s - set DTR and RTS\n", __func__);
-	} else {
-		private->line_signals &= ~UPD78F0730_DTR;
-		private->line_signals &= ~UPD78F0730_RTS;
-		dev_dbg(dev, "%s - reset DTR and RTS\n", __func__);
-	}
-	request.params = private->line_signals;
-	spin_unlock_irqrestore(&private->lock, flags);
-
-	upd78f0730_send_ctl(port, &request, sizeof(request));
 }
 
 static void upd78f0730_break_ctl(struct tty_struct *tty, int break_state)
