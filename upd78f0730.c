@@ -266,46 +266,17 @@ static void upd78f0730_set_termios(struct tty_struct *tty,
 static int upd78f0730_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	int res;
-	unsigned long flags;
-	struct upd78f0730_serial_private *private;
 	struct open_close request_open = {
 		.opcode = UPD78F0730_CMD_OPEN_CLOSE,
 		.state = UPD78F0730_PORT_OPEN
 	};
-	struct set_dtr_rts request_set_dtr_rts = {
-		.opcode = UPD78F0730_CMD_SET_DTR_RTS,
-		.params = 0
-	};
-	struct set_err_chr request_set_err_chr = {
-		.opcode = UPD78F0730_CMD_SET_ERR_CHR,
-		.state = UPD78F0730_ERR_CHR_DISABLED,
-		.err_char = 0
-	};
 
-	struct {
-		void	*data;
-		int	size;
-	} *request, requests[] = {
-		{ &request_open, sizeof(request_open) },
-		{ &request_set_dtr_rts, sizeof(request_set_dtr_rts) },
-		{ &request_set_err_chr, sizeof(request_set_err_chr) },
-		{ }
-	};
+	res = upd78f0730_send_ctl(port, &request_open, sizeof(request_open));
+	if (res)
+		return res;
 
-	private = usb_get_serial_port_data(port);
-	spin_lock_irqsave(&private->lock, flags);
-	request_set_dtr_rts.params = private->line_signals;
-	spin_unlock_irqrestore(&private->lock, flags);
-
-	request = requests;
-	do {
-		res = upd78f0730_send_ctl(port, request->data, request->size);
-		if (res)
-			return res;
-		++request;
-	} while (request->data);
-
-	upd78f0730_set_termios(tty, port, NULL);
+	if (tty)
+		upd78f0730_set_termios(tty, port, NULL);
 
 	return usb_serial_generic_open(tty, port);
 }
