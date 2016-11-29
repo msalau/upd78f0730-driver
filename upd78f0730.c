@@ -78,8 +78,6 @@ static struct usb_serial_driver upd78f0730_device = {
 	},
 	.id_table	= id_table,
 	.num_ports	= 1,
-	.bulk_in_size	= 64,
-	.bulk_out_size	= 64,
 	.attach		= upd78f0730_attach,
 	.release	= upd78f0730_release,
 	.open		= upd78f0730_open,
