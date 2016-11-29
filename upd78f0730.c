@@ -133,13 +133,6 @@ struct set_err_chr {
 	u8 err_char;
 };
 
-/*
- * upd78f0730_send_ctl
- * Send a control command to the adaptor.
- * The data argument points to a command structure in memory,
- * which is 'size' bytes long.
- * On success 0 is returned, or negative value otherwise.
- */
 static int upd78f0730_send_ctl(struct usb_serial_port *port,
 			void *data, int size)
 {
@@ -177,11 +170,6 @@ static int upd78f0730_send_ctl(struct usb_serial_port *port,
 	return 0;
 }
 
-/*
- * upd78f0730_attach
- * The function is called when a new adaptor is connected to the host.
- * The function allocates the private structure for the adaptor.
- */
 static int upd78f0730_attach(struct usb_serial *serial)
 {
 	struct upd78f0730_serial_private *private;
@@ -199,12 +187,6 @@ static int upd78f0730_attach(struct usb_serial *serial)
 	return 0;
 }
 
-/*
- * upd78f0730_release
- * The function is called when the adaptor is detached from the host.
- * The function de-allocates memory occupied by the private structure
- * associated with the adaptor.
- */
 static void upd78f0730_release(struct usb_serial *serial)
 {
 	struct upd78f0730_serial_private *private;
@@ -213,14 +195,6 @@ static void upd78f0730_release(struct usb_serial *serial)
 	kfree(private);
 }
 
-/*
- * upd78f0730_set_termios
- * Configure the adaptor according to software needs.
- * The driver is not aware of the current configuration of the adaptor,
- * and performs full reconfiguration every time.
- * Note: Original devices support baudrates from 2400 up to 115200,
- * but the driver doesn't limit the user in his desires.
- */
 static void upd78f0730_set_termios(struct tty_struct *tty,
 				struct usb_serial_port *port,
 				struct ktermios *old_termios)
@@ -292,16 +266,6 @@ static void upd78f0730_set_termios(struct tty_struct *tty,
 	upd78f0730_send_ctl(port, &request_xchr, sizeof(request_xchr));
 }
 
-/*
- * upd78f0730_open
- * The function is called when software opens the port
- * that is associated with the adaptor.
- * The function performs basic initialization of the adaptor:
- *  1. opens port;
- *  2. sets initial state for DTR and RTS;
- *  3. disables error character substitution.
- * The driver can control the state of the adaptor only if the port is opened.
- */
 static int upd78f0730_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	int res;
@@ -349,14 +313,6 @@ static int upd78f0730_open(struct tty_struct *tty, struct usb_serial_port *port)
 	return usb_serial_generic_open(tty, port);
 }
 
-/*
- * upd78f0730_close
- * The function is called when the port associated with the adaptor is closed
- * by the host software.
- * The function sends close command to the adaptor. From that moment,
- * driver can't control state of the adaptor
- * (e.g. state of the control signals).
- */
 static void upd78f0730_close(struct usb_serial_port *port)
 {
 	struct open_close request_close = {
@@ -368,12 +324,6 @@ static void upd78f0730_close(struct usb_serial_port *port)
 	upd78f0730_send_ctl(port, &request_close, sizeof(request_close));
 }
 
-/*
- * upd78f0730_tiocmget
- * Read current state of DTR and RTS.
- * Other signals are not present and the values associated with them
- * shall be ignored.
- */
 static int upd78f0730_tiocmget(struct tty_struct *tty)
 {
 	int res = 0;
@@ -397,11 +347,6 @@ static int upd78f0730_tiocmget(struct tty_struct *tty)
 	return res;
 }
 
-/*
- * upd78f0730_tiocmset
- * Set state of DTR and RTS.
- * Requests for other signals are ignored without reporting a failure.
- */
 static int upd78f0730_tiocmset(struct tty_struct *tty,
 			unsigned int set, unsigned int clear)
 {
@@ -439,10 +384,6 @@ static int upd78f0730_tiocmset(struct tty_struct *tty,
 	return res;
 }
 
-/*
- * upd78f0730_dtr_rts
- * Initialize both DTR and RTS to a value passed as argument.
- */
 static void upd78f0730_dtr_rts(struct usb_serial_port *port, int on)
 {
 	unsigned long flags;
@@ -468,14 +409,6 @@ static void upd78f0730_dtr_rts(struct usb_serial_port *port, int on)
 	upd78f0730_send_ctl(port, &request, sizeof(request));
 }
 
-/*
- * upd78f0730_break_ctl
- * Control BREAK signal.
- * The BREAK signal is not covered in the specification of the adaptor.
- * It's behavior was sniffed from the original driver for Windows.
- * BREAK is controlled by a bit in the 'params' field of
- * UPD78F0730_CMD_SET_DTR_RTS command.
- */
 static void upd78f0730_break_ctl(struct tty_struct *tty, int break_state)
 {
 	unsigned long flags;
