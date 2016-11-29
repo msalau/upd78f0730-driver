@@ -146,20 +146,31 @@ static int upd78f0730_send_ctl(struct usb_serial_port *port,
 	int res;
 	struct device *dev = &port->dev;
 	struct usb_device *usbdev = port->serial->dev;
+	void *buf;
 
-	if (!port || !data || size == 0) {
+	if (!size)
+		return 0;
+	if (!data) {
 		dev_err(dev, "%s - invalid arguments\n", __func__);
 		return -EINVAL;
 	}
 
+	buf = kmemdup(data, size, GFP_KERNEL);
+
+	if (!buf)
+		return -ENOMEM;
+
 	res = usb_control_msg(usbdev, usb_sndctrlpipe(usbdev, 0), 0x00,
 			USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
-			0x0000, 0x0000, data, size, USB_CTRL_SET_TIMEOUT);
+			0x0000, 0x0000, buf, size, USB_CTRL_SET_TIMEOUT);
+
+	kfree(buf);
 
 	if (res < 0 || res != size) {
 		dev_err(dev,
 			"%s - send failed: opcode=%02x, size=%d, res=%d\n",
 			__func__, *(u8 *)data, size, res);
+		/* The maximum expected length of a transfer is 6 bytes */
 		return -EIO;
 	}
 
