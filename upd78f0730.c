@@ -307,8 +307,8 @@ static int upd78f0730_tiocmget(struct tty_struct *tty)
 	signals = private->line_signals;
 	spin_unlock_irqrestore(&private->lock, flags);
 
-	res = ((signals & UPD78F0730_DTR) ? TIOCM_DTR : 0)
-		| ((signals & UPD78F0730_RTS) ? TIOCM_RTS : 0);
+	res = ((signals & UPD78F0730_DTR) ? TIOCM_DTR : 0) |
+		((signals & UPD78F0730_RTS) ? TIOCM_RTS : 0);
 
 	dev_dbg(dev, "%s - res = %x\n", __func__, res);
 
