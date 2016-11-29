@@ -173,14 +173,10 @@ static int upd78f0730_send_ctl(struct usb_serial_port *port,
 static int upd78f0730_attach(struct usb_serial *serial)
 {
 	struct upd78f0730_serial_private *private;
-	struct device *dev = &serial->dev->dev;
 
 	private = kzalloc(sizeof(*private), GFP_KERNEL);
-	if (!private) {
-		dev_err(dev, "%s - unable to allocate memory\n",
-			__func__);
+	if (!private)
 		return -ENOMEM;
-	}
 	spin_lock_init(&private->lock);
 	private->line_signals = 0;
 	usb_set_serial_data(serial, private);
