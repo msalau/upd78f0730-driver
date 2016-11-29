@@ -187,7 +187,6 @@ static int upd78f0730_attach(struct usb_serial *serial)
 	struct upd78f0730_serial_private *private;
 	struct device *dev = &serial->dev->dev;
 
-	dev_dbg(dev, "%s\n", __func__);
 	private = kzalloc(sizeof(*private), GFP_KERNEL);
 	if (!private) {
 		dev_err(dev, "%s - unable to allocate memory\n",
@@ -210,7 +209,6 @@ static void upd78f0730_release(struct usb_serial *serial)
 {
 	struct upd78f0730_serial_private *private;
 
-	dev_dbg(&serial->dev->dev, "%s\n", __func__);
 	private = usb_get_serial_data(serial);
 	kfree(private);
 }
@@ -333,7 +331,6 @@ static int upd78f0730_open(struct tty_struct *tty, struct usb_serial_port *port)
 		{ }
 	};
 
-	dev_dbg(&port->dev, "%s\n", __func__);
 	private = usb_get_serial_data(port->serial);
 	spin_lock_irqsave(&private->lock, flags);
 	request_set_dtr_rts.params = private->line_signals;
@@ -367,7 +364,6 @@ static void upd78f0730_close(struct usb_serial_port *port)
 		.state = UPD78F0730_PORT_CLOSE
 	};
 
-	dev_dbg(&port->dev, "%s\n", __func__);
 	usb_serial_generic_close(port);
 	upd78f0730_send_ctl(port, &request_close, sizeof(request_close));
 }
@@ -418,7 +414,6 @@ static int upd78f0730_tiocmset(struct tty_struct *tty,
 
 	private = usb_get_serial_data(port->serial);
 
-	dev_dbg(dev, "%s\n", __func__);
 	spin_lock_irqsave(&private->lock, flags);
 	if (set & TIOCM_DTR) {
 		private->line_signals |= UPD78F0730_DTR;
