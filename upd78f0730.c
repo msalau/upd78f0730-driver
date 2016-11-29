@@ -51,7 +51,7 @@ MODULE_DEVICE_TABLE(usb, id_table);
  */
 struct upd78f0730_serial_private {
 	spinlock_t	lock;	      /* spinlock for line_signals */
-	__u8		line_signals;
+	u8		line_signals;
 };
 
 /* Function prototypes */
@@ -144,35 +144,35 @@ static struct usb_serial_driver * const serial_drivers[] = {
 
 /* UPD78F0730_CMD_LINE_CONTROL command */
 struct line_control {
-	__u8	opcode;
+	u8	opcode;
 	__le32	baud_rate;
-	__u8	params;
+	u8	params;
 } __packed;
 
 /* UPD78F0730_CMD_SET_DTR_RTS command */
 struct set_dtr_rts {
-	__u8 opcode;
-	__u8 params;
+	u8 opcode;
+	u8 params;
 };
 
 /* UPD78F0730_CMD_SET_XON_OFF_CHR command */
 struct set_xon_xoff_chr {
-	__u8 opcode;
-	__u8 xon;
-	__u8 xoff;
+	u8 opcode;
+	u8 xon;
+	u8 xoff;
 };
 
 /* UPD78F0730_CMD_OPEN_CLOSE command */
 struct open_close {
-	__u8 opcode;
-	__u8 state;
+	u8 opcode;
+	u8 state;
 };
 
 /* UPD78F0730_CMD_SET_ERR_CHR command */
 struct set_err_chr {
-	__u8 opcode;
-	__u8 state;
-	__u8 err_char;
+	u8 opcode;
+	u8 state;
+	u8 err_char;
 };
 
 /*
@@ -201,7 +201,7 @@ static int upd78f0730_send_ctl(struct usb_serial_port *port,
 	if (res < 0 || res != size) {
 		dev_err(dev,
 			"%s - send failed: opcode=%02x, size=%d, res=%d\n",
-			__func__, *(__u8 *)data, size, res);
+			__func__, *(u8 *)data, size, res);
 		return -EIO;
 	}
 
