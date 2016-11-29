@@ -170,7 +170,7 @@ static int upd78f0730_send_ctl(struct usb_serial_port *port,
 	return 0;
 }
 
-static int upd78f0730_attach(struct usb_serial *serial)
+static int upd78f0730_port_probe(struct usb_serial_port *port)
 {
 	struct upd78f0730_serial_private *private;
 
@@ -179,16 +179,17 @@ static int upd78f0730_attach(struct usb_serial *serial)
 		return -ENOMEM;
 	spin_lock_init(&private->lock);
 	private->line_signals = 0;
-	usb_set_serial_data(serial, private);
+	usb_set_serial_port_data(port, private);
 	return 0;
 }
 
-static void upd78f0730_release(struct usb_serial *serial)
+static int upd78f0730_port_remove(struct usb_serial_port *port)
 {
 	struct upd78f0730_serial_private *private;
 
-	private = usb_get_serial_data(serial);
+	private = usb_get_serial_port_data(port);
 	kfree(private);
+	return 0;
 }
 
 static void upd78f0730_set_termios(struct tty_struct *tty,
@@ -291,7 +292,7 @@ static int upd78f0730_open(struct tty_struct *tty, struct usb_serial_port *port)
 		{ }
 	};
 
-	private = usb_get_serial_data(port->serial);
+	private = usb_get_serial_port_data(port);
 	spin_lock_irqsave(&private->lock, flags);
 	request_set_dtr_rts.params = private->line_signals;
 	spin_unlock_irqrestore(&private->lock, flags);
@@ -329,7 +330,7 @@ static int upd78f0730_tiocmget(struct tty_struct *tty)
 	struct upd78f0730_serial_private *private;
 	struct usb_serial_port *port = tty->driver_data;
 
-	private = usb_get_serial_data(port->serial);
+	private = usb_get_serial_port_data(port);
 
 	spin_lock_irqsave(&private->lock, flags);
 	signals = private->line_signals;
@@ -353,7 +354,7 @@ static int upd78f0730_tiocmset(struct tty_struct *tty,
 	struct usb_serial_port *port = tty->driver_data;
 	struct set_dtr_rts request = { .opcode = UPD78F0730_CMD_SET_DTR_RTS };
 
-	private = usb_get_serial_data(port->serial);
+	private = usb_get_serial_port_data(port);
 
 	spin_lock_irqsave(&private->lock, flags);
 	if (set & TIOCM_DTR) {
@@ -387,7 +388,7 @@ static void upd78f0730_dtr_rts(struct usb_serial_port *port, int on)
 	struct upd78f0730_serial_private *private;
 	struct set_dtr_rts request = { .opcode = UPD78F0730_CMD_SET_DTR_RTS };
 
-	private = usb_get_serial_data(port->serial);
+	private = usb_get_serial_port_data(port);
 
 	spin_lock_irqsave(&private->lock, flags);
 	if (on) {
@@ -413,7 +414,7 @@ static void upd78f0730_break_ctl(struct tty_struct *tty, int break_state)
 	struct usb_serial_port *port = tty->driver_data;
 	struct set_dtr_rts request = { .opcode = UPD78F0730_CMD_SET_DTR_RTS };
 
-	private = usb_get_serial_data(port->serial);
+	private = usb_get_serial_port_data(port);
 
 	spin_lock_irqsave(&private->lock, flags);
 	if (break_state) {
@@ -436,8 +437,8 @@ static struct usb_serial_driver upd78f0730_device = {
 	},
 	.id_table	= id_table,
 	.num_ports	= 1,
-	.attach		= upd78f0730_attach,
-	.release	= upd78f0730_release,
+	.port_probe	= upd78f0730_port_probe,
+	.port_remove	= upd78f0730_port_remove,
 	.open		= upd78f0730_open,
 	.close		= upd78f0730_close,
 	.set_termios	= upd78f0730_set_termios,
