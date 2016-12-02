@@ -292,7 +292,7 @@ static void upd78f0730_dtr_rts(struct usb_serial_port *port, int on)
 	upd78f0730_tiocmset(tty, set, clear);
 }
 
-speed_t upd78f0730_get_baud_rate(struct tty_struct *tty)
+static speed_t upd78f0730_get_baud_rate(struct tty_struct *tty)
 {
 	int i;
 	const tcflag_t baud_rate = C_BAUD(tty);
