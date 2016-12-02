@@ -45,11 +45,11 @@ For details see LICENSE file.
   # Links
 
 * UPD78F0730 microcontroller
-  http://am.renesas.com/products/mpumcu/78k/78f07xx/78f073x/index.jsp
+  https://www.renesas.com/en-eu/products/microcontrollers-microprocessors/78k/78f07xx/78f073x.html
 * Application Note μPD78F0730 USB-to-Serial Conversion Software 
-  http://documentation.renesas.com/doc/DocumentServer/U19660EJ1V0AN00.pdf
+  https://www.renesas.com/en-eu/doc/DocumentServer/026/U19660EJ1V0AN00.pdf
 * YRPBRL78G14 board
-  http://am.renesas.com/products/tools/introductory_evaluation_tools/renesas_promo_board/yrpbrl78g14/index.jsp
+  https://www.renesas.com/en-eu/products/software-tools/boards-and-kits/renesas-promotion-boards/yrpbrl78g14-for-rl78-g14.html
 * rl78flash
   https://github.com/msalau/rl78flash
 

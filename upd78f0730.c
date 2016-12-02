@@ -10,7 +10,7 @@
  * Protocol of the adaptor is described in the application note U19660EJ1V0AN00
  * μPD78F0730 8-bit Single-Chip Microcontroller
  * USB-to-Serial Conversion Software
- * <http://documentation.renesas.com/doc/DocumentServer/U19660EJ1V0AN00.pdf>
+ * <https://www.renesas.com/en-eu/doc/DocumentServer/026/U19660EJ1V0AN00.pdf>
  *
  * The adaptor functionality is limited to the following:
  * - data bits: 7 or 8
