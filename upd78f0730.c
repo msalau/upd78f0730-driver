@@ -52,7 +52,7 @@ MODULE_DEVICE_TABLE(usb, id_table);
  * state of control signals (DTR, RTS and BREAK).
  */
 struct upd78f0730_serial_private {
-	spinlock_t	lock;	      /* spinlock for line_signals */
+	struct mutex	lock;		/* mutex to protect line_signals */
 	u8		line_signals;
 };
 
@@ -179,7 +179,7 @@ static int upd78f0730_port_probe(struct usb_serial_port *port)
 	private = kzalloc(sizeof(*private), GFP_KERNEL);
 	if (!private)
 		return -ENOMEM;
-	spin_lock_init(&private->lock);
+	mutex_init(&private->lock);
 	private->line_signals = 0;
 	usb_set_serial_port_data(port, private);
 	return 0;
@@ -190,6 +190,7 @@ static int upd78f0730_port_remove(struct usb_serial_port *port)
 	struct upd78f0730_serial_private *private;
 
 	private = usb_get_serial_port_data(port);
+	mutex_destroy(&private->lock);
 	kfree(private);
 	return 0;
 }
@@ -198,16 +199,15 @@ static int upd78f0730_tiocmget(struct tty_struct *tty)
 {
 	int res = 0;
 	int signals;
-	unsigned long flags;
 	struct device *dev = tty->dev;
 	struct upd78f0730_serial_private *private;
 	struct usb_serial_port *port = tty->driver_data;
 
 	private = usb_get_serial_port_data(port);
 
-	spin_lock_irqsave(&private->lock, flags);
+	mutex_lock(&private->lock);
 	signals = private->line_signals;
-	spin_unlock_irqrestore(&private->lock, flags);
+	mutex_unlock(&private->lock);
 
 	res = ((signals & UPD78F0730_DTR) ? TIOCM_DTR : 0) |
 		((signals & UPD78F0730_RTS) ? TIOCM_RTS : 0);
@@ -221,7 +221,6 @@ static int upd78f0730_tiocmset(struct tty_struct *tty,
 			unsigned int set, unsigned int clear)
 {
 	int res;
-	unsigned long flags;
 	struct device *dev = tty->dev;
 	struct upd78f0730_serial_private *private;
 	struct usb_serial_port *port = tty->driver_data;
@@ -229,7 +228,7 @@ static int upd78f0730_tiocmset(struct tty_struct *tty,
 
 	private = usb_get_serial_port_data(port);
 
-	spin_lock_irqsave(&private->lock, flags);
+	mutex_lock(&private->lock);
 	if (set & TIOCM_DTR) {
 		private->line_signals |= UPD78F0730_DTR;
 		dev_dbg(dev, "%s - set DTR\n", __func__);
@@ -247,16 +246,15 @@ static int upd78f0730_tiocmset(struct tty_struct *tty,
 		dev_dbg(dev, "%s - reset RTS\n", __func__);
 	}
 	request.params = private->line_signals;
-	spin_unlock_irqrestore(&private->lock, flags);
 
 	res = upd78f0730_send_ctl(port, &request, sizeof(request));
+	mutex_unlock(&private->lock);
 
 	return res;
 }
 
 static void upd78f0730_break_ctl(struct tty_struct *tty, int break_state)
 {
-	unsigned long flags;
 	struct device *dev = tty->dev;
 	struct upd78f0730_serial_private *private;
 	struct usb_serial_port *port = tty->driver_data;
@@ -264,7 +262,7 @@ static void upd78f0730_break_ctl(struct tty_struct *tty, int break_state)
 
 	private = usb_get_serial_port_data(port);
 
-	spin_lock_irqsave(&private->lock, flags);
+	mutex_lock(&private->lock);
 	if (break_state) {
 		private->line_signals |= UPD78F0730_BREAK;
 		dev_dbg(dev, "%s - set BREAK\n", __func__);
@@ -273,9 +271,9 @@ static void upd78f0730_break_ctl(struct tty_struct *tty, int break_state)
 		dev_dbg(dev, "%s - reset BREAK\n", __func__);
 	}
 	request.params = private->line_signals;
-	spin_unlock_irqrestore(&private->lock, flags);
 
 	upd78f0730_send_ctl(port, &request, sizeof(request));
+	mutex_unlock(&private->lock);
 }
 
 static void upd78f0730_dtr_rts(struct usb_serial_port *port, int on)
