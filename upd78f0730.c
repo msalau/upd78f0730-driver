@@ -281,11 +281,11 @@ static void upd78f0730_dtr_rts(struct usb_serial_port *port, int on)
 	unsigned int set = 0;
 	unsigned int clear = 0;
 
-	if (on) {
+	if (on)
 		set = TIOCM_DTR | TIOCM_RTS;
-	} else {
+	else
 		clear = TIOCM_DTR | TIOCM_RTS;
-	}
+
 	upd78f0730_tiocmset(tty, set, clear);
 }
 
