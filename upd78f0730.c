@@ -171,6 +171,19 @@ static int upd78f0730_send_ctl(struct usb_serial_port *port,
 	return 0;
 }
 
+static int upd78f0730_attach(struct usb_serial *serial)
+{
+	const char num_ports = serial->num_ports;
+
+	if (serial->num_bulk_in < num_ports ||
+			serial->num_bulk_out < num_ports) {
+		dev_err(&serial->interface->dev, "missing endpoints\n");
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
 static int upd78f0730_port_probe(struct usb_serial_port *port)
 {
 	struct upd78f0730_serial_private *private;
@@ -422,6 +435,7 @@ static struct usb_serial_driver upd78f0730_device = {
 	},
 	.id_table	= id_table,
 	.num_ports	= 1,
+	.attach		= upd78f0730_attach,
 	.port_probe	= upd78f0730_port_probe,
 	.port_remove	= upd78f0730_port_remove,
 	.open		= upd78f0730_open,
