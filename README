@@ -28,7 +28,7 @@ Board can be used in 2 modes (selectable by jumpers CN6, CN7, CN8 and CN11):
   RESET is not connected)
 
 Example: get information about target microcontroller (in OCD mode)
-rl78flash -im3 /dev/ttyUSB0
+rl78flash -inm3 /dev/ttyUSB0
 
   # Copying/License
 
