@@ -276,7 +276,7 @@ static void upd78f0730_break_ctl(struct tty_struct *tty, int break_state)
 		private->line_signals &= ~UPD78F0730_BREAK;
 		dev_dbg(dev, "%s - clear BREAK\n", __func__);
 	}
-	request.params = UPD78F0730_CMD_SET_DTR_RTS;
+	request.opcode = UPD78F0730_CMD_SET_DTR_RTS;
 	request.params = private->line_signals;
 
 	upd78f0730_send_ctl(port, &request, sizeof(request));
