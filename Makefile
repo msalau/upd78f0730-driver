@@ -25,10 +25,10 @@ load:
 	modprobe upd78f0730
 
 load_debug:
-	modprobe upd78f0730 dyndbg==pmf
+	modprobe upd78f0730 dyndbg==p
 
 unload:
 	rmmod upd78f0730
 
 enable_debug:
-	echo -n 'module upd78f0730 +fp' > $(shell awk '$$1 == "debugfs" {print $$2}' /proc/mounts)/dynamic_debug/control
+	echo -n 'module upd78f0730 =p' > $(shell awk '$$1 == "debugfs" {print $$2}' /proc/mounts)/dynamic_debug/control
