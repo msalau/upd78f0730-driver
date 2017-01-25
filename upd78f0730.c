@@ -128,14 +128,13 @@ struct upd78f0730_set_err_chr {
 };
 
 static int upd78f0730_send_ctl(struct usb_serial_port *port,
-			void *data, int size)
+			const void *data, int size)
 {
-	struct device *dev = &port->dev;
 	struct usb_device *usbdev = port->serial->dev;
 	void *buf;
 	int res;
 
-	if (!size || !data)
+	if (size <= 0 || !data)
 		return -EINVAL;
 
 	buf = kmemdup(data, size, GFP_KERNEL);
@@ -148,28 +147,16 @@ static int upd78f0730_send_ctl(struct usb_serial_port *port,
 
 	kfree(buf);
 
-	if (res < 0)
-		return res;
-
 	if (res != size) {
-		dev_err(dev, "%s - send failed: opcode=%02x, size=%d, res=%d\n",
-			__func__, *(u8 *)data, size, res);
+		struct device *dev = &port->dev;
+
+		dev_err(dev, "failed to send control request %02x: %d\n",
+			*(u8 *)data, res);
 		/* The maximum expected length of a transfer is 6 bytes */
-		return -EIO;
-	}
+		if (res >= 0)
+			res = -EIO;
 
-	return 0;
-}
-
-static int upd78f0730_attach(struct usb_serial *serial)
-{
-	const char num_ports = serial->num_ports;
-
-	if (serial->num_bulk_in < num_ports ||
-			serial->num_bulk_out < num_ports) {
-		dev_err(&serial->interface->dev, "%s - missing endpoints\n",
-			__func__);
-		return -ENODEV;
+		return res;
 	}
 
 	return 0;
@@ -346,8 +333,7 @@ static void upd78f0730_set_termios(struct tty_struct *tty,
 	default:
 		tty->termios.c_cflag &= ~CSIZE;
 		tty->termios.c_cflag |= CS8;
-		dev_warn(dev, "%s - data size is not supported, using 8 bits\n",
-			__func__);
+		dev_warn(dev, "data size is not supported, using 8 bits\n");
 		/* fall through */
 	case CS8:
 		request.params |= UPD78F0730_DATA_SIZE_8_BITS;
@@ -366,8 +352,7 @@ static void upd78f0730_set_termios(struct tty_struct *tty,
 
 		if (C_CMSPAR(tty)) {
 			tty->termios.c_cflag &= ~CMSPAR;
-			dev_warn(dev, "%s - MARK/SPACE parity is not supported\n",
-				__func__);
+			dev_warn(dev, "MARK/SPACE parity is not supported\n");
 		}
 	} else {
 		request.params |= UPD78F0730_PARITY_NONE;
@@ -384,13 +369,11 @@ static void upd78f0730_set_termios(struct tty_struct *tty,
 
 	if (C_CRTSCTS(tty)) {
 		tty->termios.c_cflag &= ~CRTSCTS;
-		dev_warn(dev, "%s - RTSCTS flow control is not supported\n",
-			__func__);
+		dev_warn(dev, "RTSCTS flow control is not supported\n");
 	}
 	if (I_IXOFF(tty) || I_IXON(tty)) {
 		tty->termios.c_iflag &= ~(IXOFF | IXON);
-		dev_warn(dev, "%s - XON/XOFF flow control is not supported\n",
-			__func__);
+		dev_warn(dev, "XON/XOFF flow control is not supported\n");
 	}
 	request.params |= UPD78F0730_FLOW_CONTROL_NONE;
 	dev_dbg(dev, "%s - no flow control\n", __func__);
@@ -434,7 +417,6 @@ static struct usb_serial_driver upd78f0730_device = {
 	},
 	.id_table	= id_table,
 	.num_ports	= 1,
-	.attach		= upd78f0730_attach,
 	.port_probe	= upd78f0730_port_probe,
 	.port_remove	= upd78f0730_port_remove,
 	.open		= upd78f0730_open,
