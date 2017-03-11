@@ -8,6 +8,8 @@ produced by NEC Electronics and Renesas Electronics. Using this driver you can
 program the board mentioned above with rl78flash, or communicate with main MCU
 through serial port with any terminal program you like.
 
+The driver is part of the Linux kernel since v4.11.
+
   # Build
 
 make
